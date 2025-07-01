@@ -106,18 +106,49 @@ class Window(QMainWindow):
         container.setLayout(layout)
 
         self.setCentralWidget(container)
+
     def search(self):
         query = self.search_input.text()
         if not query:
             return
+
+        priority_sites = [
+            "stackoverflow.com",
+            "geeksforgeeks.org",
+            "reddit.com/r/programming",
+            "reddit.com/r/learnprogramming",
+            "reddit.com/r/AskProgramming",
+            "tutorialspoint.com",
+            "w3schools.com",
+            "medium.com/topic/programming",
+            "dev.to",
+            "github.com",
+            "devdocs.io",
+            "youtube.com",
+            "developer.mozilla.org",
+        ]
+
+        site_query = " OR ".join([f"site:{site}" for site in priority_sites])
+        prioritized_query = f"{site_query} {query}"
 
         for i in reversed(range(self.results_layout.count())):
             child = self.results_layout.itemAt(i).widget()
             if child:
                 child.setParent(None)
 
+        results = []
+
         with DDGS() as ddgs:
-            results = ddgs.text(query, max_results=20)
+            priority_results = ddgs.text(prioritized_query, max_results=20)
+
+            general_results = ddgs.text(query, max_results=20)
+
+        seen = set()
+        for result in priority_results + general_results:
+            href = result.get('href')
+            if href and href not in seen:
+                seen.add(href)
+                results.append(result)
 
         if results:
             for result in results:
@@ -125,19 +156,21 @@ class Window(QMainWindow):
                 result_label.setWordWrap(True)
                 result_label.setTextFormat(Qt.TextFormat.RichText)
                 result_label.setOpenExternalLinks(True)
-                
+
                 title = result.get('title', 'No title')
                 href = result.get('href', '#')
                 body = result.get('body', 'No description available')
-                
+
                 html_content = f"""
                 <div style="margin: 0; padding: 0;">
-                    <h3 style="margin: 0 0 5px 0; padding: 0;"><a href="{href}" style="color: #0066cc; text-decoration: none;">{title}</a></h3>
+                    <h3 style="margin: 0 0 5px 0; padding: 0;">
+                        <a href="{href}" style="color: #0066cc; text-decoration: none;">{title}</a>
+                    </h3>
                     <p style="color: #666; font-size: 11px; margin: 0 0 3px 0; padding: 0;">{href}</p>
                     <p style="margin: 0; padding: 0; font-size: 13px;">{body}</p>
                 </div>
                 """
-                
+
                 result_label.setText(html_content)
                 result_label.setStyleSheet("""
                     QLabel {
@@ -150,13 +183,15 @@ class Window(QMainWindow):
                         background-color: rgba(255, 255, 255, 0.05);
                     }
                 """)
-                
+
                 self.results_layout.addWidget(result_label)
         else:
             no_results = QLabel("No results found.")
             no_results.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            no_results.setStyleSheet("color: #999; font-size: 16px; padding: 30px; background-color: transparent;")
+            no_results.setStyleSheet(
+                "color: #999; font-size: 16px; padding: 30px; background-color: transparent;")
             self.results_layout.addWidget(no_results)
+
         
 def main():
     app = QApplication([])
