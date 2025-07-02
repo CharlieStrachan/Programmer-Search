@@ -1,0 +1,4 @@
+// Here you can set the maximum number of results to be displayed in the search results.
+{
+  "max_results": 5
+}
