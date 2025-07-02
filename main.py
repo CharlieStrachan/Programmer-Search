@@ -17,7 +17,17 @@ def load_sites():
         print("Warning: sites.jsonc is empty.")
         return []
 
-MAX_RESULTS = 5  # <-- Adjustable
+def load_settings():
+    try:
+        with open('settings.jsonc', 'r') as file:
+            content = file.read()
+            settings = JsonComment().loads(content)
+            return settings.get('max_results', 5)
+    except FileNotFoundError:
+        print("Warning: settings.jsonc is empty.")
+        return 5
+
+MAX_RESULTS = load_settings()
 
 class Style:
     def __init__(self, mode = 0):
