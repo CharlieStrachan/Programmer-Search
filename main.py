@@ -4,6 +4,21 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayou
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtCore import Qt
 
+from jsoncomment import JsonComment
+import traceback
+from urllib.parse import urlparse
+
+def load_sites():
+    try:
+        with open('sites.jsonc', 'r') as file:
+            content = file.read()
+            return JsonComment().loads(content)
+    except FileNotFoundError:
+        print("Warning: sites.jsonc is empty.")
+        return []
+
+MAX_RESULTS = 5  # <-- Adjustable
+
 class Style:
     def __init__(self, mode = 0):
         if mode == 0:
@@ -71,6 +86,8 @@ class Style:
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.prioritized_sites = load_sites()
+
         self.setGeometry(100, 100, 800, 600)
         self.setWindowTitle("Programmer Search")
         self.setStyleSheet(Style().style_sheet())
@@ -86,11 +103,11 @@ class Window(QMainWindow):
         self.search_input = QLineEdit(self)
         self.search_input.setPlaceholderText("Enter your search query...")
         self.search_input.returnPressed.connect(self.search)
-    
+
         search_layout.addWidget(self.search_input)
 
         layout.addLayout(search_layout)
-        
+
         self.results_scroll = QScrollArea()
         self.results_widget = QWidget()
         self.results_layout = QVBoxLayout(self.results_widget)
@@ -99,37 +116,18 @@ class Window(QMainWindow):
         self.results_layout.setContentsMargins(0, 0, 0, 0)
         self.results_scroll.setWidget(self.results_widget)
         self.results_scroll.setWidgetResizable(True)
-        
+
         layout.addWidget(self.results_scroll)
-        
+
         container = QWidget()
         container.setLayout(layout)
 
         self.setCentralWidget(container)
 
     def search(self):
-        query = self.search_input.text()
+        query = self.search_input.text().strip()
         if not query:
             return
-
-        priority_sites = [
-            "stackoverflow.com",
-            "geeksforgeeks.org",
-            "reddit.com/r/programming",
-            "reddit.com/r/learnprogramming",
-            "reddit.com/r/AskProgramming",
-            "tutorialspoint.com",
-            "w3schools.com",
-            "medium.com/topic/programming",
-            "dev.to",
-            "github.com",
-            "devdocs.io",
-            "youtube.com",
-            "developer.mozilla.org",
-        ]
-
-        site_query = " OR ".join([f"site:{site}" for site in priority_sites])
-        prioritized_query = f"{site_query} {query}"
 
         for i in reversed(range(self.results_layout.count())):
             child = self.results_layout.itemAt(i).widget()
@@ -137,62 +135,84 @@ class Window(QMainWindow):
                 child.setParent(None)
 
         results = []
-
         with DDGS() as ddgs:
-            priority_results = ddgs.text(prioritized_query, max_results=20)
+            try:
+                results = ddgs.text(query, max_results=MAX_RESULTS)
+            except Exception as e:
+                print(f"Error searching: {e}")
+                traceback.print_exc()
 
-            general_results = ddgs.text(query, max_results=20)
+        self.display_results(results)
 
-        seen = set()
-        for result in priority_results + general_results:
-            href = result.get('href')
-            if href and href not in seen:
-                seen.add(href)
-                results.append(result)
+    def is_prioritized(self, url):
+        parsed_url = urlparse(url)
+        result_domain = parsed_url.netloc.lower().lstrip('www.')
 
-        if results:
-            for result in results:
-                result_label = QLabel()
-                result_label.setWordWrap(True)
-                result_label.setTextFormat(Qt.TextFormat.RichText)
-                result_label.setOpenExternalLinks(True)
+        for site in self.prioritized_sites:
+            site_parsed = urlparse(site)
+            site_domain = site_parsed.netloc.lower().lstrip('www.')
 
-                title = result.get('title', 'No title')
-                href = result.get('href', '#')
-                body = result.get('body', 'No description available')
+            if not site_domain:
+                site_domain = site.replace('http://', '').replace('https://', '').split('/')[0].lower().lstrip('www.')
 
-                html_content = f"""
-                <div style="margin: 0; padding: 0;">
-                    <h3 style="margin: 0 0 5px 0; padding: 0;">
-                        <a href="{href}" style="color: #0066cc; text-decoration: none;">{title}</a>
-                    </h3>
-                    <p style="color: #666; font-size: 11px; margin: 0 0 3px 0; padding: 0;">{href}</p>
-                    <p style="margin: 0; padding: 0; font-size: 13px;">{body}</p>
-                </div>
-                """
+            if result_domain.endswith(site_domain):
+                return True
 
-                result_label.setText(html_content)
+        return False
+
+
+    def display_results(self, results):
+        for result in results:
+            href = result.get('href', '')
+            title = result.get('title', 'No title')
+            body = result.get('body', 'No description available')
+
+            is_priority = self.is_prioritized(href)
+
+            result_label = QLabel()
+            result_label.setWordWrap(True)
+            result_label.setTextFormat(Qt.TextFormat.RichText)
+            result_label.setOpenExternalLinks(True)
+
+            priority_star = '<span style="color: #28a745; font-weight: bold;"></span>' if is_priority else ''
+
+            html_content = f"""
+            <div style="margin: 0; padding: 0;">
+                <h3 style="margin: 0 0 5px 0; padding: 0;">
+                    {priority_star}<a href="{href}" style="color: #0066cc; text-decoration: none;">{title}</a>
+                </h3>
+                <p style="color: #666; font-size: 11px; margin: 0 0 3px 0; padding: 0;">{href}</p>
+                <p style="margin: 0; padding: 0; font-size: 13px;">{body}</p>
+            </div>
+            """
+
+            result_label.setText(html_content)
+
+            if is_priority:
                 result_label.setStyleSheet("""
                     QLabel {
                         padding: 10px;
                         border-bottom: 1px solid #444;
-                        margin: 0px;
-                        background-color: transparent;
+                        border-left: 3px solid #28a745;
+                        background-color: rgba(40, 167, 69, 0.1);
+                    }
+                    QLabel:hover {
+                        background-color: rgba(40, 167, 69, 0.2);
+                    }
+                """)
+            else:
+                result_label.setStyleSheet("""
+                    QLabel {
+                        padding: 10px;
+                        border-bottom: 1px solid #444;
                     }
                     QLabel:hover {
                         background-color: rgba(255, 255, 255, 0.05);
                     }
                 """)
 
-                self.results_layout.addWidget(result_label)
-        else:
-            no_results = QLabel("No results found.")
-            no_results.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            no_results.setStyleSheet(
-                "color: #999; font-size: 16px; padding: 30px; background-color: transparent;")
-            self.results_layout.addWidget(no_results)
+            self.results_layout.addWidget(result_label)
 
-        
 def main():
     app = QApplication([])
     window = Window()
