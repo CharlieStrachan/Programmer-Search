@@ -1,5 +1,7 @@
 // These sites are for my personal use with using python and PySide6. Edit this file as you wish to better suit your needs.
 [
+	"https://github.com/*",
+
 	"https://doc.qt.io/qtforpython-6/*",	
 	"https://pypi.org/*",
 	"https://learnpython.org/*",
@@ -21,5 +23,5 @@
 
     "https://reddit.com/r/AskProgramming/*",
     "https://reddit.com/r/learnprogramming/*",
-    "https://reddit.com/r/Programming/*",
+    "https://reddit.com/r/Programming/*"
 ]
