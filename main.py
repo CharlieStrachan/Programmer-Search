@@ -5,10 +5,16 @@ from PySide6.QtGui import QFont, QIcon
 from PySide6.QtCore import Qt
 
 from jsoncomment import JsonComment
+
 import traceback
 from urllib.parse import urlparse
 
-def load_sites():
+def load_sites() -> list[str]:
+    """
+    Load prioritized sites from a JSONC file.
+    Returns:
+        list: A list of prioritized sites.
+    """
     try:
         with open('sites.jsonc', 'r') as file:
             content = file.read()
@@ -17,7 +23,13 @@ def load_sites():
         print("Warning: sites.jsonc is empty.")
         return []
 
-def load_settings():
+# Function to load settings from a JSONC file
+def load_settings() -> int:
+    """
+    Load settings from a JSONC file.
+    Returns:
+        int: The maximum number of results to display.
+    """
     try:
         with open('settings.jsonc', 'r') as file:
             content = file.read()
@@ -30,7 +42,20 @@ def load_settings():
 MAX_RESULTS = load_settings()
 
 class Style:
-    def __init__(self, mode = 0):
+    """
+    A class to define the style for the application.
+    Attributes:
+        BACKGROUND_COLOR (str): Background color of the main window.
+        WIDGET_COLOR (str): Color of the widgets.
+        WIDGET_COLOR_HOVER (str): Color of the widgets on hover.
+        TEXT_COLOR (str): Color of the text.
+    """
+    def __init__(self, mode = 0) -> None:
+        """
+        Initializes the style with colors based on the mode.
+        Args:
+            mode (int): 0 for dark mode, 1 for light mode. Default is 0.
+        """
         if mode == 0:
             (self.BACKGROUND_COLOR, self.WIDGET_COLOR, self.WIDGET_COLOR_HOVER, self.TEXT_COLOR) = (
                 "#212529", "#343A40", "#495057", "#FFFFFF"
@@ -39,7 +64,12 @@ class Style:
             (self.BACKGROUND_COLOR, self.WIDGET_COLOR, self.WIDGET_COLOR_HOVER, self.TEXT_COLOR) = (
                 "#dedad6", "#cbc5bf", "#b6afa8", "#000000"
             )
-    def style_sheet(self):
+    def style_sheet(self) -> str:
+        """
+        Returns the style sheet for the application.
+        Returns:
+            str: The style sheet as a string.
+        """
         return f"""
         QMainWindow {{
             background-color: {self.BACKGROUND_COLOR};
@@ -94,7 +124,17 @@ class Style:
         """
 
 class Window(QMainWindow):
-    def __init__(self):
+    """
+    A class for the main application window.
+    Inherits from QMainWindow.
+    Attributes:
+        prioritized_sites (list): A list of prioritized sites loaded from a JSONC file.
+    """
+    def __init__(self) -> None:
+        """
+        Inherits from QMainWindow and initializes the main window.
+        Loads prioritized sites from a JSONC file and sets up the UI.
+        """
         super().__init__()
         self.prioritized_sites = load_sites()
 
@@ -105,7 +145,11 @@ class Window(QMainWindow):
         self.setWindowIcon(QIcon("icon.png"))
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
+        """
+        Sets up the user interface for the main window.
+        Creates a vertical layout with a search input field and a scroll area for displaying results.
+        """
         layout = QVBoxLayout()
         search_layout = QHBoxLayout()
         search_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -134,7 +178,11 @@ class Window(QMainWindow):
 
         self.setCentralWidget(container)
 
-    def search(self):
+    def search(self) -> None:
+        """
+        Performs a search using the DuckDuckGo Search API.
+        Clears previous results and displays new results based on the search query.        
+        """
         query = self.search_input.text().strip()
         if not query:
             return
@@ -154,7 +202,14 @@ class Window(QMainWindow):
 
         self.display_results(results)
 
-    def is_prioritized(self, url):
+    def is_prioritized(self, url) -> bool:
+        """
+        Checks if the given URL matches any of the prioritized sites.
+        Args:
+            url (str): The URL to check.
+        Returns:
+            bool: True if the URL matches a prioritized site, False otherwise.
+        """
         parsed_url = urlparse(url)
         result_domain = parsed_url.netloc.lower().lstrip('www.')
 
@@ -171,7 +226,12 @@ class Window(QMainWindow):
         return False
 
 
-    def display_results(self, results):
+    def display_results(self, results) -> None:
+        """
+        Displays the search results in the results layout.
+        Args:
+            results (list): A list of search results to display.
+        """
         for result in results:
             href = result.get('href', '')
             title = result.get('title', 'No title')
@@ -223,11 +283,12 @@ class Window(QMainWindow):
 
             self.results_layout.addWidget(result_label)
 
-def main():
+if __name__ == '__main__':
+    """
+    Main entry point for the application.
+    Initializes the QApplication, creates the main window, and starts the event loop.
+    """
     app = QApplication([])
     window = Window()
     window.show()
     app.exec()
-
-if __name__ == '__main__':
-    main()
