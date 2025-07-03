@@ -27,4 +27,4 @@ If you are on linux, you might need to use `python3` instead of `python`.
 
 # Showcase
 
-![search_showcase](https://github.com/user-attachments/assets/25d5ff83-7620-4ab7-8520-fe056c74a4a6)
+![search_showcase_1](https://github.com/user-attachments/assets/5be80d5c-bc03-43c0-9bf3-71d5586c8d82)
